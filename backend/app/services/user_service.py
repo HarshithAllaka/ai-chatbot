@@ -17,12 +17,9 @@ class UserService:
         self,
         user: UserCreate,
     ) -> User:
-        """
-        Creates a new user after performing all business validations.
-        """
-
-        # Check if the email is already registered
-        existing_user = self.repository.get_by_email(user.email)
+        existing_user = self.repository.get_by_email(
+            user.email
+        )
 
         if existing_user:
             raise HTTPException(
@@ -30,12 +27,10 @@ class UserService:
                 detail="Email already registered",
             )
 
-        # Hash the password before storing it
         hashed_password = get_password_hash(
             user.password
         )
 
-        # Delegate persistence to the repository
         return self.repository.create(
             email=user.email,
             full_name=user.full_name,

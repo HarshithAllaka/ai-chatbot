@@ -1,15 +1,21 @@
 from sqlalchemy.orm import Session
 
-from app.core.security import get_password_hash
 from app.models.user import User
-from app.schemas.user import UserCreate
 
 
 class UserRepository:
-    def __init__(self, db: Session):
+    def __init__(
+        self,
+        db: Session,
+    ):
         self.db = db
 
-    def create(self, email: str, full_name: str, hashed_password: str) -> User:
+    def create(
+        self,
+        email: str,
+        full_name: str,
+        hashed_password: str,
+    ) -> User:
         db_user = User(
             email=email,
             full_name=full_name,
