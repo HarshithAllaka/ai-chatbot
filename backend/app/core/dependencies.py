@@ -45,15 +45,15 @@ def get_current_user(
     try:
         payload = decode_access_token(token)
 
-        email = payload.get("sub")
+        user_id = payload.get("sub")
 
-        if email is None:
+        if user_id is None:
             raise InvalidCredentialsError()
 
     except JWTError:
         raise InvalidCredentialsError()
 
-    user = repository.get_by_email(email)
+    user = repository.get_by_id(int(user_id))
 
     if user is None:
         raise InvalidCredentialsError()

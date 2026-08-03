@@ -1,3 +1,5 @@
+from fastapi.security import OAuth2PasswordRequestForm
+
 from app.core.security import (
     create_access_token,
     get_password_hash,
@@ -9,11 +11,7 @@ from app.exceptions.auth import (
 )
 from app.models.user import User
 from app.repositories.user_repository import UserRepository
-from app.schemas.user import (
-    TokenResponse,
-    UserCreate,
-    UserLogin,
-)
+from app.schemas.user import TokenResponse, UserCreate
 
 
 class UserService:
@@ -46,23 +44,23 @@ class UserService:
 
     def login(
         self,
-        credentials: UserLogin,
+        form_data: OAuth2PasswordRequestForm,
     ) -> TokenResponse:
         user = self.repository.get_by_email(
-            credentials.email
+            form_data.username,
         )
 
         if user is None:
             raise InvalidCredentialsError()
 
         if not verify_password(
-            credentials.password,
+            form_data.password,
             user.hashed_password,
         ):
             raise InvalidCredentialsError()
 
         token = create_access_token(
-            subject=user.email,
+            subject=str(user.id),
         )
 
         return TokenResponse(

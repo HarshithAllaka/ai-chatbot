@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, status
+from fastapi.security import OAuth2PasswordRequestForm
 
 from app.core.dependencies import (
     get_current_user,
@@ -8,7 +9,6 @@ from app.models.user import User
 from app.schemas.user import (
     TokenResponse,
     UserCreate,
-    UserLogin,
     UserResponse,
 )
 from app.services.user_service import UserService
@@ -35,10 +35,10 @@ def signup(
     response_model=TokenResponse,
 )
 def login(
-    credentials: UserLogin,
+    form_data: OAuth2PasswordRequestForm = Depends(),
     service: UserService = Depends(get_user_service),
 ):
-    return service.login(credentials)
+    return service.login(form_data)
 
 
 @router.get(
@@ -46,8 +46,6 @@ def login(
     response_model=UserResponse,
 )
 def get_me(
-    current_user: User = Depends(
-        get_current_user,
-    ),
+    current_user: User = Depends(get_current_user),
 ):
     return current_user
