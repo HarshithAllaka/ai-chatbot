@@ -1,12 +1,13 @@
 from fastapi import FastAPI
+from app.core.config import settings
 
-app = FastAPI()
+app = FastAPI(title=settings.app_name, version=settings.app_version)
 
 
 @app.get("/")
 def root():
     return {
-        "message": "Welcome to AI Chatbot API"
+        "message": f"Welcome to {settings.app_name} API"
     }
 
 
@@ -14,6 +15,6 @@ def root():
 def health_check():
     return {
         "status": "healthy",
-        "service": "ai-chatbot",
-        "version": "0.1.0"
+        "service": settings.app_name,
+        "version": settings.app_version
     }
