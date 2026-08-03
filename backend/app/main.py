@@ -2,8 +2,8 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.api.health import router as health_router
-from app.api.root import router as root_router
+from app.api.v1.health import router as health_router
+from app.api.v1.root import router as root_router
 from app.core.config import settings
 
 
@@ -21,8 +21,17 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    app.include_router(root_router)
-    app.include_router(health_router)
+    app.include_router(
+        root_router,
+        prefix="/api/v1",
+        tags=["Root"],
+    )
+
+    app.include_router(
+        health_router,
+        prefix="/api/v1",
+        tags=["Health"],
+    )
 
     return app
 
