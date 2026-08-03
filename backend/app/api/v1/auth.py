@@ -1,7 +1,12 @@
 from fastapi import APIRouter, Depends, status
 
 from app.core.dependencies import get_user_service
-from app.schemas.user import UserCreate, UserResponse
+from app.schemas.user import (
+    TokenResponse,
+    UserCreate,
+    UserLogin,
+    UserResponse,
+)
 from app.services.user_service import UserService
 
 router = APIRouter(
@@ -19,3 +24,14 @@ def signup(
     service: UserService = Depends(get_user_service),
 ):
     return service.create_user(user)
+
+
+@router.post(
+    "/login",
+    response_model=TokenResponse,
+)
+def login(
+    credentials: UserLogin,
+    service: UserService = Depends(get_user_service),
+):
+    return service.login(credentials)

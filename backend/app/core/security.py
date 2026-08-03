@@ -1,6 +1,8 @@
-import bcrypt
 from datetime import datetime, timedelta, timezone
+
+import bcrypt
 from jose import JWTError, jwt
+
 from app.core.config import settings
 
 
@@ -21,28 +23,29 @@ def verify_password(
         hashed_password.encode("utf-8"),
     )
 
+
 def create_access_token(
-    data: dict,
-    expires_delta: timedelta | None = None,
+    subject: str,
 ) -> str:
-    to_encode = data.copy()
+    expire = datetime.now(timezone.utc) + timedelta(
+        minutes=settings.access_token_expire_minutes
+    )
 
-    if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
-    else:
-        expire = datetime.now(timezone.utc) + timedelta(
-            minutes=settings.access_token_expire_minutes
-        )
-
-    to_encode.update({"exp": expire})
+    payload = {
+        "sub": subject,
+        "exp": expire,
+    }
 
     return jwt.encode(
-        to_encode,
+        payload,
         settings.secret_key,
         algorithm=settings.algorithm,
     )
 
-def decode_token(token: str) -> dict:
+
+def decode_access_token(
+    token: str,
+) -> dict:
     return jwt.decode(
         token,
         settings.secret_key,
