@@ -1,8 +1,6 @@
-from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, status
 
-from app.db.database import get_db
-from app.repositories.user_repository import UserRepository
+from app.core.dependencies import get_user_service
 from app.schemas.user import UserCreate, UserResponse
 from app.services.user_service import UserService
 
@@ -14,16 +12,10 @@ router = APIRouter(
 @router.post(
     "/signup",
     response_model=UserResponse,
-    status_code=201,
+    status_code=status.HTTP_201_CREATED,
 )
 def signup(
     user: UserCreate,
-    db: Session = Depends(get_db),
+    service: UserService = Depends(get_user_service),
 ):
-    repository = UserRepository(db)
-
-    service = UserService(repository)
-
-    created_user = service.create_user(user)
-
-    return created_user
+    return service.create_user(user)
