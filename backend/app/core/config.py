@@ -6,6 +6,8 @@ class Settings(BaseSettings):
     app_version: str = "0.1.0"
     debug: bool = True
 
+    database_url: str
+
     secret_key: str
     algorithm: str
     access_token_expire_minutes: int
