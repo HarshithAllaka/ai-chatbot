@@ -9,16 +9,18 @@ from app.exceptions.handlers import (
     register_exception_handlers,
 )
 
+from app.core.logging import logger
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("🚀 Starting AI Chatbot API...")
+    logger.info("Starting AI Chatbot API...")
 
     init_db()
 
     yield
 
-    print("🛑 Shutting down AI Chatbot API...")
+    logger.info("Shutting down AI Chatbot API...")
 
 
 def create_app() -> FastAPI:
