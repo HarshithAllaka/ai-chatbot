@@ -19,7 +19,11 @@ def register_exception_handlers(
         return JSONResponse(
             status_code=400,
             content={
-                "detail": "Email already registered",
+                "success": False,
+                "error": {
+                    "code": "USER_ALREADY_EXISTS",
+                    "message": "Email already registered",
+                },
             },
         )
 
@@ -33,6 +37,10 @@ def register_exception_handlers(
         return JSONResponse(
             status_code=401,
             content={
-                "detail": "Invalid email or password",
+                "success": False,
+                "error": {
+                    "code": "INVALID_CREDENTIALS",
+                    "message": "Invalid email or password",
+                },
             },
         )
