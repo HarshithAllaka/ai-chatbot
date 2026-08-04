@@ -9,6 +9,8 @@ class Settings(BaseSettings):
     database_url: str
     database_test_url: str
 
+    openai_api_key: str
+
     secret_key: str 
     algorithm: str
     access_token_expire_minutes: int
