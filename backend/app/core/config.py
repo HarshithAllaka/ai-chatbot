@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     debug: bool = True
 
     database_url: str
+    database_test_url: str
 
     secret_key: str 
     algorithm: str
