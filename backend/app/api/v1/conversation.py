@@ -11,6 +11,13 @@ from app.schemas.conversation import (
 from app.services.conversation_service import (
     ConversationService,
 )
+from app.schemas.message import (
+    MessageCreate,
+    MessageResponse,
+)
+from app.services.message_service import (
+    MessageService,
+)
 
 router = APIRouter(
     prefix="/chat",
@@ -50,4 +57,22 @@ async def get_conversations(
 
     return await service.get_conversations(
         current_user.id
+    )
+
+
+@router.post(
+    "/conversations/{conversation_id}/messages",
+    response_model=list[MessageResponse],
+)
+async def send_message(
+    conversation_id: int,
+    data: MessageCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    service = MessageService(db)
+
+    return await service.send_message(
+        conversation_id,
+        data,
     )
