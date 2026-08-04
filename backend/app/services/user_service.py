@@ -21,11 +21,12 @@ class UserService:
     ):
         self.repository = repository
 
-    def create_user(
+    async def create_user(
         self,
         user: UserCreate,
     ) -> User:
-        existing_user = self.repository.get_by_email(
+
+        existing_user = await self.repository.get_by_email(
             user.email
         )
 
@@ -36,17 +37,18 @@ class UserService:
             user.password
         )
 
-        return self.repository.create(
+        return await self.repository.create(
             email=user.email,
             full_name=user.full_name,
             hashed_password=hashed_password,
         )
 
-    def login(
+    async def login(
         self,
         form_data: OAuth2PasswordRequestForm,
     ) -> TokenResponse:
-        user = self.repository.get_by_email(
+
+        user = await self.repository.get_by_email(
             form_data.username,
         )
 

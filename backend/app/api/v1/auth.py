@@ -23,29 +23,29 @@ router = APIRouter(
     response_model=UserResponse,
     status_code=status.HTTP_201_CREATED,
 )
-def signup(
+async def signup(
     user: UserCreate,
     service: UserService = Depends(get_user_service),
 ):
-    return service.create_user(user)
+    return await service.create_user(user)
 
 
 @router.post(
     "/login",
     response_model=TokenResponse,
 )
-def login(
+async def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     service: UserService = Depends(get_user_service),
 ):
-    return service.login(form_data)
+    return await service.login(form_data)
 
 
 @router.get(
     "/me",
     response_model=UserResponse,
 )
-def get_me(
+async def get_me(
     current_user: User = Depends(get_current_user),
 ):
     return current_user
