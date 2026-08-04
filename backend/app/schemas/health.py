@@ -3,16 +3,19 @@ from pydantic import BaseModel, Field
 
 class HealthResponse(BaseModel):
     status: str = Field(
-        description="Current health status of the application",
-        example="healthy",
+        json_schema_extra={
+            "example": "healthy"
+        }
     )
 
     service: str = Field(
-        description="Application name",
-        example="AI Chatbot",
+        json_schema_extra={
+            "example": "AI Chatbot API"
+        }
     )
 
     version: str = Field(
-        description="Current application version",
-        example="0.1.0",
+        json_schema_extra={
+            "example": "1.0.0"
+        }
     )
