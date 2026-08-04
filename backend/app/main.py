@@ -8,6 +8,7 @@ from app.db.init_db import init_db
 from app.exceptions.handlers import (
     register_exception_handlers,
 )
+from app.middleware.logging import RequestLoggingMiddleware
 
 from app.core.logging import logger
 
@@ -29,6 +30,8 @@ def create_app() -> FastAPI:
         version=settings.app_version,
         lifespan=lifespan,
     )
+
+    app.add_middleware(RequestLoggingMiddleware)
 
     register_exception_handlers(app)
 
