@@ -5,7 +5,7 @@ from app.exceptions.auth import (
     InvalidCredentialsError,
     UserAlreadyExistsError,
 )
-
+from app.exceptions.ai import AIServiceError
 
 def register_exception_handlers(
     app: FastAPI,
@@ -41,6 +41,22 @@ def register_exception_handlers(
                 "error": {
                     "code": "INVALID_CREDENTIALS",
                     "message": "Invalid email or password",
+                },
+            },
+        )
+
+    @app.exception_handler(AIServiceError)
+    async def ai_service_handler(
+        request: Request,
+        exc: AIServiceError,
+    ):
+        return JSONResponse(
+            status_code=503,
+            content={
+                "success": False,
+                "error": {
+                    "code": "AI_SERVICE_ERROR",
+                    "message": str(exc),
                 },
             },
         )

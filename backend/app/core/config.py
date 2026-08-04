@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     database_test_url: str
 
     gemini_api_key: str
+    gemini_model: str
 
     secret_key: str 
     algorithm: str
