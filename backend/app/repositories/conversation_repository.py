@@ -34,3 +34,16 @@ class ConversationRepository:
         )
 
         return result.scalars().all()
+
+    async def get_by_id(
+        self,
+        conversation_id: int,
+    ):
+
+        result = await self.db.execute(
+            select(Conversation).where(
+                Conversation.id == conversation_id
+            )
+        )
+
+        return result.scalar_one_or_none()

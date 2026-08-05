@@ -1,3 +1,4 @@
+from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.conversation import Conversation
@@ -36,4 +37,28 @@ class ConversationService:
 
         return await self.repository.get_all_by_user(
             user_id
-        )  
+        )
+
+    async def verify_ownership(
+        self,
+        conversation_id: int,
+        user_id: int,
+    ):
+
+        conversation = await self.repository.get_by_id(
+            conversation_id
+        )
+
+        if conversation is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Conversation not found",
+            )
+
+        if conversation.user_id != user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have access to this conversation",
+            )
+
+        return conversation

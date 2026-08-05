@@ -70,6 +70,12 @@ async def send_message(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    conversation_service = ConversationService(db)
+    await conversation_service.verify_ownership(
+        conversation_id,
+        current_user.id,
+    )
+
     service = MessageService(db)
 
     return await service.send_message(
