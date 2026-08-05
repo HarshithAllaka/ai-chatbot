@@ -9,15 +9,16 @@ from app.models.document import (
     Document,
     DocumentStatus,
 )
+from app.models.document_chunk import DocumentChunk
 from app.repositories.document_repository import (
     DocumentRepository,
 )
-from app.services.pdf_service import (
-    PDFService,
-)
-
 from app.services.chunking_service import (
     ChunkingService,
+)
+from app.services.embedding_service import EmbeddingService
+from app.services.pdf_service import (
+    PDFService,
 )
 
 
@@ -27,6 +28,7 @@ class DocumentService:
         self.repository = DocumentRepository(db)
         self.pdf_service = PDFService()
         self.chunking_service = ChunkingService()
+        self.embedding_service = EmbeddingService()
 
     async def upload_document(
         self,
@@ -65,42 +67,72 @@ class DocumentService:
                 await file.read()
             )
 
-        # Extract text from PDF
-        extracted_text = (
-            self.pdf_service.extract_text(
-                str(storage_path)
-            )
-        )
-
-        # Temporary verification
-        print(
-            "\n========== Extracted PDF ==========\n"
-        )
-        chunks = (
-            self.chunking_service.split_text(
-                extracted_text
-            )
-        )
-        print(
-            f"Generated {len(chunks)} chunks"
-        )
-        for index, chunk in enumerate(chunks):
-            print(f"\nChunk {index}")
-            print(chunk)
-        print(
-            "\n===================================\n"
-        )
-
-        # Create document record
+        # Create document record first
         document = Document(
             user_id=user_id,
             original_filename=file.filename,
             storage_path=str(storage_path),
             mime_type=file.content_type,
             file_size=storage_path.stat().st_size,
-            status=DocumentStatus.PENDING,
+            status=DocumentStatus.PROCESSING,
         )
 
-        return await self.repository.create(
+        document = await self.repository.create(
             document
         )
+
+        try:
+            # Extract text from PDF
+            extracted_text = (
+                self.pdf_service.extract_text(
+                    str(storage_path)
+                )
+            )
+
+            # Split text into chunks
+            chunks = self.chunking_service.split_text(
+                extracted_text
+            )
+
+            document_chunks = []
+
+            for index, chunk in enumerate(chunks):
+                embedding = (
+                    await self.embedding_service.generate_embedding(
+                        chunk
+                    )
+                )
+
+                document_chunks.append(
+                    DocumentChunk(
+                        document_id=document.id,
+                        chunk_index=index,
+                        content=chunk,
+                        embedding=embedding,
+                    )
+                )
+
+            # Save all chunks at once outside the loop
+            if document_chunks:
+                await self.repository.add_chunks(
+                    document_chunks
+                )
+
+            document.status = (
+                DocumentStatus.COMPLETED
+            )
+
+            await self.repository.update(
+                document
+            )
+
+        except Exception as e:
+            document.status = (
+                DocumentStatus.FAILED
+            )
+            await self.repository.update(
+                document
+            )
+            raise e
+
+        return document

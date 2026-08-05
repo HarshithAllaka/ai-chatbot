@@ -1,6 +1,8 @@
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.document import Document
+from app.models.document_chunk import DocumentChunk
 
 
 class DocumentRepository:
@@ -14,6 +16,26 @@ class DocumentRepository:
     ) -> Document:
 
         self.db.add(document)
+
+        await self.db.commit()
+
+        await self.db.refresh(document)
+
+        return document
+
+    async def add_chunks(
+        self,
+        chunks: list[DocumentChunk],
+    ) -> None:
+
+        self.db.add_all(chunks)
+
+        await self.db.commit()
+
+    async def update(
+        self,
+        document: Document,
+    ) -> Document:
 
         await self.db.commit()
 
