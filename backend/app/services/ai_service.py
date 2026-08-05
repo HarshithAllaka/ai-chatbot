@@ -50,3 +50,28 @@ class AIService:
             
             if chunk.text:
                 yield chunk.text
+
+    async def generate_title(
+        self,
+        message: str,
+    ) -> str:
+
+        prompt = f"""
+    Generate a short conversation title.
+
+    Rules:
+    - Maximum 5 words
+    - No quotation marks
+    - No punctuation at the end
+    - Only return the title
+
+    User message:
+    {message}
+    """
+
+        response = await self.client.aio.models.generate_content(
+            model=settings.gemini_model,
+            contents=prompt,
+        )
+
+        return response.text.strip()

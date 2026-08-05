@@ -47,3 +47,14 @@ class ConversationRepository:
         )
 
         return result.scalar_one_or_none()
+
+    async def update(
+        self,
+        conversation,
+    ):
+
+        await self.db.commit()
+
+        await self.db.refresh(conversation)
+
+        return conversation

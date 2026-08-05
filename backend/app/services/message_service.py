@@ -9,6 +9,7 @@ from app.repositories.message_repository import (
 )
 from app.schemas.message import MessageCreate
 from app.services.ai_service import AIService
+from app.services.conversation_service import ConversationService
 
 
 class MessageService:
@@ -16,6 +17,7 @@ class MessageService:
     def __init__(self, db: AsyncSession):
         self.repository = MessageRepository(db)
         self.ai_service = AIService()
+        self.conversation_service = ConversationService(db)
 
     async def send_message(
         self,
@@ -23,6 +25,7 @@ class MessageService:
         data: MessageCreate,
     ):
 
+        # Save user message
         user_message = Message(
             conversation_id=conversation_id,
             role=MessageRole.USER,
@@ -33,6 +36,24 @@ class MessageService:
             user_message
         )
 
+        # Get conversation
+        conversation = await self.conversation_service.get_by_id(
+            conversation_id
+        )
+
+        # Generate title only once
+        if conversation.title == "New Chat":
+
+            title = await self.ai_service.generate_title(
+                data.content
+            )
+
+            await self.conversation_service.update_title(
+                conversation,
+                title,
+            )
+
+        # Load conversation history
         history = await self.repository.get_by_conversation(
             conversation_id
         )
@@ -52,16 +73,18 @@ class MessageService:
                     "role": role,
                     "parts": [
                         {
-                            "text": message.content
+                            "text": message.content,
                         }
                     ],
                 }
             )
 
+        # Generate AI response
         ai_response = await self.ai_service.generate_response(
             gemini_messages
         )
 
+        # Save assistant response
         assistant_message = Message(
             conversation_id=conversation_id,
             role=MessageRole.ASSISTANT,
@@ -94,6 +117,23 @@ class MessageService:
             user_message
         )
 
+        # Get conversation
+        conversation = await self.conversation_service.get_by_id(
+            conversation_id
+        )
+
+        # Generate title only once
+        if conversation.title == "New Chat":
+
+            title = await self.ai_service.generate_title(
+                data.content
+            )
+
+            await self.conversation_service.update_title(
+                conversation,
+                title,
+            )
+
         # Load conversation history
         history = await self.repository.get_by_conversation(
             conversation_id
@@ -114,13 +154,13 @@ class MessageService:
                     "role": role,
                     "parts": [
                         {
-                            "text": message.content
+                            "text": message.content,
                         }
                     ],
                 }
             )
 
-        # Stream response while collecting it
+        # Stream AI response
         complete_response = ""
 
         async for chunk in self.ai_service.stream_response(
@@ -131,7 +171,7 @@ class MessageService:
 
             yield chunk
 
-        # Save assistant response after streaming completes
+        # Save assistant response
         assistant_message = Message(
             conversation_id=conversation_id,
             role=MessageRole.ASSISTANT,

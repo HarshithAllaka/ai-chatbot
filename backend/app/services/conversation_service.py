@@ -39,6 +39,27 @@ class ConversationService:
             user_id
         )
 
+    async def get_by_id(
+        self,
+        conversation_id: int,
+    ):
+
+        return await self.repository.get_by_id(
+            conversation_id
+        )
+
+    async def update_title(
+        self,
+        conversation: Conversation,
+        title: str,
+    ):
+
+        conversation.title = title
+
+        return await self.repository.update(
+            conversation
+        )
+
     async def verify_ownership(
         self,
         conversation_id: int,
