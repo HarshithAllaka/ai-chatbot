@@ -119,7 +119,7 @@ class MessageService:
             )
         )
 
-        context = (
+        retrieval = (
             await self.retrieval_service.retrieve_context(
                 data.content
             )
@@ -129,7 +129,7 @@ class MessageService:
             await self.ai_service.generate_chat_response(
                 question=data.content,
                 history=history,
-                context=context,
+                context=retrieval.context,
             )
         )
 
