@@ -23,7 +23,6 @@ class MessageService:
         data: MessageCreate,
     ):
 
-        # Save user's latest message
         user_message = Message(
             conversation_id=conversation_id,
             role=MessageRole.USER,
@@ -34,12 +33,10 @@ class MessageService:
             user_message
         )
 
-        # Load entire conversation
         history = await self.repository.get_by_conversation(
             conversation_id
         )
 
-        # Convert to Gemini format
         gemini_messages = []
 
         for message in history:
@@ -61,12 +58,10 @@ class MessageService:
                 }
             )
 
-        # Generate AI response
         ai_response = await self.ai_service.generate_response(
             gemini_messages
         )
 
-        # Save assistant response
         assistant_message = Message(
             conversation_id=conversation_id,
             role=MessageRole.ASSISTANT,
@@ -81,3 +76,68 @@ class MessageService:
             user_message,
             assistant_message,
         ]
+
+    async def stream_message(
+        self,
+        conversation_id: int,
+        data: MessageCreate,
+    ):
+
+        # Save user message
+        user_message = Message(
+            conversation_id=conversation_id,
+            role=MessageRole.USER,
+            content=data.content,
+        )
+
+        await self.repository.create(
+            user_message
+        )
+
+        # Load conversation history
+        history = await self.repository.get_by_conversation(
+            conversation_id
+        )
+
+        gemini_messages = []
+
+        for message in history:
+
+            role = (
+                "model"
+                if message.role == MessageRole.ASSISTANT
+                else "user"
+            )
+
+            gemini_messages.append(
+                {
+                    "role": role,
+                    "parts": [
+                        {
+                            "text": message.content
+                        }
+                    ],
+                }
+            )
+
+        # Stream response while collecting it
+        complete_response = ""
+
+        async for chunk in self.ai_service.stream_response(
+            gemini_messages
+        ):
+
+            complete_response += chunk
+
+            yield chunk
+
+        # Save assistant response after streaming completes
+        assistant_message = Message(
+            conversation_id=conversation_id,
+            role=MessageRole.ASSISTANT,
+            content=complete_response,
+        )
+
+        await self.repository.create(
+            assistant_message
+        )

@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi.responses import StreamingResponse
 
 from app.core.dependencies import get_current_user
 from app.db.database import get_db
@@ -81,4 +82,36 @@ async def send_message(
     return await service.send_message(
         conversation_id,
         data,
+    )
+
+@router.post(
+    "/conversations/{conversation_id}/messages/stream",
+)
+async def stream_message(
+    conversation_id: int,
+    data: MessageCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+
+    conversation_service = ConversationService(db)
+
+    await conversation_service.verify_ownership(
+        conversation_id,
+        current_user.id,
+    )
+
+    message_service = MessageService(db)
+
+    async def event_stream():
+
+        async for chunk in message_service.stream_message(
+            conversation_id,
+            data,
+        ):
+            yield chunk
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/plain",
     )

@@ -35,3 +35,18 @@ class AIService:
             raise AIServiceError(
                 "AI service is currently unavailable."
             ) from e
+
+    async def stream_response(
+        self,
+        messages: list[dict],
+    ):
+
+        stream = await self.client.aio.models.generate_content_stream(
+            model=settings.gemini_model,
+            contents=messages,
+        )
+
+        async for chunk in stream:
+            
+            if chunk.text:
+                yield chunk.text
