@@ -10,6 +10,9 @@ from app.repositories.message_repository import (
 from app.schemas.message import MessageCreate
 from app.services.ai_service import AIService
 from app.services.conversation_service import ConversationService
+from app.services.retrieval_service import (
+    RetrievalService,
+)
 
 
 class MessageService:
@@ -18,6 +21,7 @@ class MessageService:
         self.repository = MessageRepository(db)
         self.ai_service = AIService()
         self.conversation_service = ConversationService(db)
+        self.retrieval_service = RetrievalService(db)
 
     async def _save_user_message(
         self,
@@ -123,8 +127,17 @@ class MessageService:
             conversation_id
         )
 
-        ai_response = await self.ai_service.generate_response(
-            gemini_messages
+        context = (
+            await self.retrieval_service.retrieve_context(
+                data.content
+            )
+        )
+
+        ai_response = (
+            await self.ai_service.answer_with_context(
+                question=data.content,
+                context=context,
+            )
         )
 
         assistant_message = await self._save_assistant_message(

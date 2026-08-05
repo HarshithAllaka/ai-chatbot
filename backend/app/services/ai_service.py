@@ -57,17 +57,18 @@ class AIService:
     ) -> str:
 
         prompt = f"""
-    Generate a short conversation title.
+        
+        Generate a short conversation title.
 
-    Rules:
-    - Maximum 5 words
-    - No quotation marks
-    - No punctuation at the end
-    - Only return the title
+        Rules:
+        - Maximum 5 words
+        - No quotation marks
+        - No punctuation at the end
+        - Only return the title
 
-    User message:
-    {message}
-    """
+        User message:
+        {message}
+        """
 
         response = await self.client.aio.models.generate_content(
             model=settings.gemini_model,
@@ -75,3 +76,31 @@ class AIService:
         )
 
         return response.text.strip()
+
+    async def answer_with_context(
+        self,
+        question: str,
+        context: str,
+    ) -> str:
+
+        prompt = f"""
+        
+        You are a helpful AI assistant.
+
+        Answer ONLY using the provided context.
+
+        If the answer cannot be found,
+        say that the information is not available.
+
+        Context:
+
+        {context}
+
+        Question:
+
+        {question}
+        """
+
+        return await self.generate_response(
+            prompt
+        )
