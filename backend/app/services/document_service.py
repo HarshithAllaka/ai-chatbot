@@ -16,12 +16,17 @@ from app.services.pdf_service import (
     PDFService,
 )
 
+from app.services.chunking_service import (
+    ChunkingService,
+)
+
 
 class DocumentService:
 
     def __init__(self, db: AsyncSession):
         self.repository = DocumentRepository(db)
         self.pdf_service = PDFService()
+        self.chunking_service = ChunkingService()
 
     async def upload_document(
         self,
@@ -71,7 +76,17 @@ class DocumentService:
         print(
             "\n========== Extracted PDF ==========\n"
         )
-        print(extracted_text)
+        chunks = (
+            self.chunking_service.split_text(
+                extracted_text
+            )
+        )
+        print(
+            f"Generated {len(chunks)} chunks"
+        )
+        for index, chunk in enumerate(chunks):
+            print(f"\nChunk {index}")
+            print(chunk)
         print(
             "\n===================================\n"
         )
