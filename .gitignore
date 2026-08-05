@@ -26,6 +26,10 @@ logs/
 .coverage
 htmlcov/
 
+# Uploaded files
+uploads/*
+!uploads/.gitkeep
+
 # =========================
 # IDE
 # =========================
