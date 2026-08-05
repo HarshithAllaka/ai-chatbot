@@ -23,7 +23,7 @@ class MessageService:
         data: MessageCreate,
     ):
 
-        # Save user message
+        # Save user's latest message
         user_message = Message(
             conversation_id=conversation_id,
             role=MessageRole.USER,
@@ -34,12 +34,39 @@ class MessageService:
             user_message
         )
 
-        # Generate AI response
-        ai_response = await self.ai_service.generate_response(
-            data.content
+        # Load entire conversation
+        history = await self.repository.get_by_conversation(
+            conversation_id
         )
 
-        # Save assistant message
+        # Convert to Gemini format
+        gemini_messages = []
+
+        for message in history:
+
+            role = (
+                "model"
+                if message.role == MessageRole.ASSISTANT
+                else "user"
+            )
+
+            gemini_messages.append(
+                {
+                    "role": role,
+                    "parts": [
+                        {
+                            "text": message.content
+                        }
+                    ],
+                }
+            )
+
+        # Generate AI response
+        ai_response = await self.ai_service.generate_response(
+            gemini_messages
+        )
+
+        # Save assistant response
         assistant_message = Message(
             conversation_id=conversation_id,
             role=MessageRole.ASSISTANT,

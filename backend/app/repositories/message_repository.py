@@ -1,3 +1,4 @@
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.message import Message
@@ -20,3 +21,18 @@ class MessageRepository:
         await self.db.refresh(message)
 
         return message
+
+    async def get_by_conversation(
+        self,
+        conversation_id: int,
+    ):
+
+        result = await self.db.execute(
+            select(Message)
+            .where(
+                Message.conversation_id == conversation_id
+            )
+            .order_by(Message.created_at.asc())
+        )
+
+        return result.scalars().all()

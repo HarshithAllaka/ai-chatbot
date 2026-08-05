@@ -14,14 +14,14 @@ class AIService:
 
     async def generate_response(
         self,
-        user_message: str,
+        messages: list[dict],
     ) -> str:
 
         try:
 
             response = await self.client.aio.models.generate_content(
                 model=settings.gemini_model,
-                contents=user_message,
+                contents=messages,
             )
 
             return response.text
@@ -33,5 +33,5 @@ class AIService:
             )
 
             raise AIServiceError(
-                "AI service is currently unavailable. Please try again later."
+                "AI service is currently unavailable."
             ) from e
