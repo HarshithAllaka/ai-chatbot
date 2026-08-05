@@ -12,12 +12,16 @@ from app.models.document import (
 from app.repositories.document_repository import (
     DocumentRepository,
 )
+from app.services.pdf_service import (
+    PDFService,
+)
 
 
 class DocumentService:
 
     def __init__(self, db: AsyncSession):
         self.repository = DocumentRepository(db)
+        self.pdf_service = PDFService()
 
     async def upload_document(
         self,
@@ -33,12 +37,13 @@ class DocumentService:
 
         # Create uploads directory
         upload_dir = Path(settings.upload_dir)
+
         upload_dir.mkdir(
             parents=True,
             exist_ok=True,
         )
 
-        # Unique filename
+        # Generate unique filename
         extension = Path(file.filename).suffix
 
         unique_filename = (
@@ -49,13 +54,29 @@ class DocumentService:
             upload_dir / unique_filename
         )
 
-        # Save file
+        # Save uploaded PDF
         with open(storage_path, "wb") as buffer:
             buffer.write(
                 await file.read()
             )
 
-        # Create database record
+        # Extract text from PDF
+        extracted_text = (
+            self.pdf_service.extract_text(
+                str(storage_path)
+            )
+        )
+
+        # Temporary verification
+        print(
+            "\n========== Extracted PDF ==========\n"
+        )
+        print(extracted_text)
+        print(
+            "\n===================================\n"
+        )
+
+        # Create document record
         document = Document(
             user_id=user_id,
             original_filename=file.filename,
