@@ -11,7 +11,8 @@ class Settings(BaseSettings):
 
     gemini_api_key: str
     gemini_model: str
-
+    gemini_embedding_model: str
+    
     secret_key: str 
     algorithm: str
     access_token_expire_minutes: int
