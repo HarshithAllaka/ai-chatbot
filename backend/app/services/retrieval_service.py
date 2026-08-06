@@ -27,6 +27,7 @@ class RetrievalService:
 
     async def retrieve_context(
         self,
+        conversation_id: int,
         question: str,
     ) -> RetrievalResult:
 
@@ -38,7 +39,8 @@ class RetrievalService:
 
         chunks = (
             await self.repository.search_chunks(
-                embedding
+                conversation_id=conversation_id,
+                embedding=embedding,
             )
         )
 

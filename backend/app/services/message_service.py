@@ -121,7 +121,8 @@ class MessageService:
 
         retrieval = (
             await self.retrieval_service.retrieve_context(
-                data.content
+                conversation_id=conversation_id,
+                question=data.content,
             )
         )
 
@@ -167,9 +168,10 @@ class MessageService:
             )
         )
 
-        context = (
+        retrieval = (
             await self.retrieval_service.retrieve_context(
-                data.content
+                conversation_id=conversation_id,
+                question=data.content,
             )
         )
 
@@ -179,7 +181,7 @@ class MessageService:
             self.ai_service.stream_chat_response(
                 question=data.content,
                 history=history,
-                context=context,
+                context=retrieval.context,
             )
         ):
 

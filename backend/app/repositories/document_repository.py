@@ -103,12 +103,18 @@ class DocumentRepository:
 
     async def search_chunks(
         self,
+        conversation_id: int,
         embedding: list[float],
         limit: int = 5,
     ):
 
         stmt = (
             select(DocumentChunk)
+            .join(Document)
+            .where(
+                Document.conversation_id
+                == conversation_id
+            )
             .order_by(
                 DocumentChunk.embedding.cosine_distance(
                     embedding
@@ -117,6 +123,8 @@ class DocumentRepository:
             .limit(limit)
         )
 
-        result = await self.db.execute(stmt)
+        result = await self.db.execute(
+            stmt
+        )
 
         return result.scalars().all()
