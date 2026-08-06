@@ -32,11 +32,12 @@ router = APIRouter(
 
 
 @router.post(
-    "/upload",
+    "/conversations/{conversation_id}",
     response_model=DocumentResponse,
     status_code=201,
 )
 async def upload_document(
+    conversation_id: int,
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     current_user: User = Depends(
@@ -48,8 +49,9 @@ async def upload_document(
     service = DocumentService(db)
 
     document = await service.upload_document(
-        current_user.id,
-        file,
+        conversation_id=conversation_id,
+        user_id=current_user.id,
+        file=file,
     )
 
     background_tasks.add_task(

@@ -48,6 +48,7 @@ class DocumentService:
 
     async def upload_document(
         self,
+        conversation_id: int,
         user_id: int,
         file: UploadFile,
     ) -> Document:
@@ -89,6 +90,7 @@ class DocumentService:
 
         document = Document(
             user_id=user_id,
+            conversation_id=conversation_id,
             original_filename=file.filename,
             storage_path=str(storage_path),
             mime_type=file.content_type,

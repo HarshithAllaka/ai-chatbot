@@ -1,7 +1,15 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import (
+    DateTime,
+    ForeignKey,
+    String,
+)
+from sqlalchemy.orm import (
+    Mapped,
+    mapped_column,
+    relationship,
+)
 from sqlalchemy.sql import func
 
 from app.db.base import Base
@@ -42,6 +50,12 @@ class Conversation(Base):
 
     messages = relationship(
         "Message",
+        back_populates="conversation",
+        cascade="all, delete-orphan",
+    )
+
+    documents = relationship(
+        "Document",
         back_populates="conversation",
         cascade="all, delete-orphan",
     )

@@ -37,6 +37,11 @@ class Document(Base):
         nullable=False,
     )
 
+    conversation_id: Mapped[int] = mapped_column(
+        ForeignKey("conversations.id"),
+        nullable=False,
+    )
+
     original_filename: Mapped[str] = mapped_column(
         String(255),
         nullable=False,
@@ -60,7 +65,10 @@ class Document(Base):
     status: Mapped[DocumentStatus] = mapped_column(
         SqlEnum(
             DocumentStatus,
-            values_callable=lambda enum: [e.value for e in enum],
+            values_callable=lambda enum: [
+                e.value
+                for e in enum
+            ],
         ),
         default=DocumentStatus.PENDING,
         nullable=False,
@@ -70,6 +78,11 @@ class Document(Base):
         DateTime(timezone=True),
         server_default=func.now(),
         nullable=False,
+    )
+
+    conversation = relationship(
+        "Conversation",
+        back_populates="documents",
     )
 
     chunks = relationship(
