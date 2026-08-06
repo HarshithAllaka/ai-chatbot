@@ -9,14 +9,18 @@ from app.models.document import (
     Document,
     DocumentStatus,
 )
-from app.models.document_chunk import DocumentChunk
+from app.models.document_chunk import (
+    DocumentChunk,
+)
 from app.repositories.document_repository import (
     DocumentRepository,
 )
 from app.services.chunking_service import (
     ChunkingService,
 )
-from app.services.embedding_service import EmbeddingService
+from app.services.embedding_service import (
+    EmbeddingService,
+)
 from app.services.pdf_service import (
     PDFService,
 )
@@ -24,11 +28,23 @@ from app.services.pdf_service import (
 
 class DocumentService:
 
-    def __init__(self, db: AsyncSession):
-        self.repository = DocumentRepository(db)
+    def __init__(
+        self,
+        db: AsyncSession,
+    ):
+        self.repository = (
+            DocumentRepository(db)
+        )
+
         self.pdf_service = PDFService()
-        self.chunking_service = ChunkingService()
-        self.embedding_service = EmbeddingService()
+
+        self.chunking_service = (
+            ChunkingService()
+        )
+
+        self.embedding_service = (
+            EmbeddingService()
+        )
 
     async def upload_document(
         self,
@@ -36,22 +52,23 @@ class DocumentService:
         file: UploadFile,
     ) -> Document:
 
-        # Validate PDF
         if file.content_type != "application/pdf":
             raise ValueError(
                 "Only PDF files are allowed."
             )
 
-        # Create uploads directory
-        upload_dir = Path(settings.upload_dir)
+        upload_dir = Path(
+            settings.upload_dir
+        )
 
         upload_dir.mkdir(
             parents=True,
             exist_ok=True,
         )
 
-        # Generate unique filename
-        extension = Path(file.filename).suffix
+        extension = Path(
+            file.filename
+        ).suffix
 
         unique_filename = (
             f"{uuid4()}{extension}"
@@ -61,42 +78,70 @@ class DocumentService:
             upload_dir / unique_filename
         )
 
-        # Save uploaded PDF
-        with open(storage_path, "wb") as buffer:
+        with open(
+            storage_path,
+            "wb",
+        ) as buffer:
+
             buffer.write(
                 await file.read()
             )
 
-        # Create document record first
         document = Document(
             user_id=user_id,
             original_filename=file.filename,
             storage_path=str(storage_path),
             mime_type=file.content_type,
             file_size=storage_path.stat().st_size,
-            status=DocumentStatus.PROCESSING,
+            status=DocumentStatus.PENDING,
         )
 
-        document = await self.repository.create(
+        return await self.repository.create(
             document
         )
 
+    async def process_document(
+        self,
+        document_id: int,
+    ) -> None:
+
+        document = (
+            await self.repository.get_by_id(
+                document_id
+            )
+        )
+
+        if document is None:
+            return
+
         try:
-            # Extract text from PDF
+
+            document.status = (
+                DocumentStatus.PROCESSING
+            )
+
+            await self.repository.update(
+                document
+            )
+
             extracted_text = (
                 self.pdf_service.extract_text(
-                    str(storage_path)
+                    document.storage_path
                 )
             )
 
-            # Split text into chunks
-            chunks = self.chunking_service.split_text(
-                extracted_text
+            chunks = (
+                self.chunking_service.split_text(
+                    extracted_text
+                )
             )
 
             document_chunks = []
 
-            for index, chunk in enumerate(chunks):
+            for index, chunk in enumerate(
+                chunks
+            ):
+
                 embedding = (
                     await self.embedding_service.generate_embedding(
                         chunk
@@ -112,8 +157,8 @@ class DocumentService:
                     )
                 )
 
-            # Save all chunks at once outside the loop
             if document_chunks:
+
                 await self.repository.add_chunks(
                     document_chunks
                 )
@@ -126,13 +171,14 @@ class DocumentService:
                 document
             )
 
-        except Exception as e:
+        except Exception:
+
             document.status = (
                 DocumentStatus.FAILED
             )
+
             await self.repository.update(
                 document
             )
-            raise e
 
-        return document
+            raise
