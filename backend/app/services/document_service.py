@@ -182,3 +182,23 @@ class DocumentService:
             )
 
             raise
+
+    async def list_documents(
+        self,
+        user_id: int,
+    ) -> list[Document]:
+
+        return await self.repository.get_by_user(
+            user_id
+        )
+
+    async def get_document(
+        self,
+        document_id: int,
+        user_id: int,
+    ) -> Document | None:
+
+        return await self.repository.get_by_id_and_user(
+            document_id,
+            user_id,
+        )

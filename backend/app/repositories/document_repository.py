@@ -42,6 +42,45 @@ class DocumentRepository:
 
         return result.scalar_one_or_none()
 
+    async def get_by_user(
+        self,
+        user_id: int,
+    ) -> list[Document]:
+
+        stmt = (
+            select(Document)
+            .where(
+                Document.user_id == user_id
+            )
+            .order_by(
+                Document.created_at.desc()
+            )
+        )
+
+        result = await self.db.execute(stmt)
+
+        return list(
+            result.scalars().all()
+        )
+
+    async def get_by_id_and_user(
+        self,
+        document_id: int,
+        user_id: int,
+    ) -> Document | None:
+
+        stmt = (
+            select(Document)
+            .where(
+                Document.id == document_id,
+                Document.user_id == user_id,
+            )
+        )
+
+        result = await self.db.execute(stmt)
+
+        return result.scalar_one_or_none()
+
     async def add_chunks(
         self,
         chunks: list[DocumentChunk],
