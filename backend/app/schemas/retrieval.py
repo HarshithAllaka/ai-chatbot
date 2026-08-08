@@ -26,6 +26,7 @@ class RetrievalDiagnostics:
     accepted_count: int
     rejected_count: int
     threshold: float
+    best_distance: float | None
     candidates: list[RetrievalCandidate]
 
 

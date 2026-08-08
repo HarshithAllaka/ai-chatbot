@@ -18,6 +18,8 @@ from app.services.embedding_service import (
 class RetrievalService:
 
     SIMILARITY_THRESHOLD = 0.35
+    DISTANCE_MARGIN = 0.10
+    MAX_CONTEXT_CHUNKS = 3
 
     def __init__(
         self,
@@ -43,6 +45,21 @@ class RetrievalService:
 
         candidates = []
 
+        best_distance = (
+            float(rows[0][1])
+            if rows
+            else None
+        )
+
+        threshold = (
+            min(
+                self.SIMILARITY_THRESHOLD,
+                best_distance + self.DISTANCE_MARGIN,
+            )
+            if best_distance is not None
+            else self.SIMILARITY_THRESHOLD
+        )
+
         for rank, (chunk, distance) in enumerate(
             rows,
             start=1,
@@ -51,7 +68,9 @@ class RetrievalService:
             distance = float(distance)
 
             included = (
-                distance <= self.SIMILARITY_THRESHOLD
+                distance <= threshold
+                and len(retrieved_chunks)
+                < self.MAX_CONTEXT_CHUNKS
             )
 
             candidates.append(
@@ -80,7 +99,8 @@ class RetrievalService:
                 len(candidates)
                 - len(retrieved_chunks)
             ),
-            threshold=self.SIMILARITY_THRESHOLD,
+            threshold=threshold,
+            best_distance=best_distance,
             candidates=candidates,
         )
 
@@ -141,12 +161,14 @@ Chunk: {chunk.chunk_index}
             "accepted=%s | "
             "rejected=%s | "
             "threshold=%s | "
+            "best_distance=%s | "
             "results=%s",
             conversation_id,
             diagnostics.candidate_count,
             diagnostics.accepted_count,
             diagnostics.rejected_count,
             diagnostics.threshold,
+            diagnostics.best_distance,
             candidate_summary,
         )
 
