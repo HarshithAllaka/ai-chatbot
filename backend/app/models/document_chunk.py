@@ -1,8 +1,11 @@
 from sqlalchemy import (
+    Computed,
     ForeignKey,
     Integer,
     Text,
 )
+
+from sqlalchemy.dialects.postgresql import TSVECTOR
 
 from sqlalchemy.orm import (
     Mapped,
@@ -35,6 +38,15 @@ class DocumentChunk(Base):
     content: Mapped[str] = mapped_column(
         Text,
         nullable=False,
+    )
+
+    search_vector: Mapped[str] = mapped_column(
+        TSVECTOR,
+        Computed(
+            "to_tsvector('english', content)",
+            persisted=True,
+        ),
+        nullable=True,
     )
 
     embedding: Mapped[list[float]] = mapped_column(

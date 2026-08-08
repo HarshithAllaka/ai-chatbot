@@ -9,6 +9,8 @@ from app.models.document_chunk import (
 class RetrievedChunk:
     chunk: DocumentChunk
     distance: float
+    keyword_score: float
+    hybrid_score: float
 
 
 @dataclass
@@ -17,6 +19,9 @@ class RetrievalCandidate:
     document_id: int
     rank: int
     distance: float
+    keyword_score: float
+    hybrid_score: float
+    match_type: str
     included: bool
 
 

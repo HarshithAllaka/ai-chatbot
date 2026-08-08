@@ -46,7 +46,10 @@ class RetrievalService:
         candidates = []
 
         best_distance = (
-            float(rows[0][1])
+            min(
+                float(distance)
+                for _, distance, _, _ in rows
+            )
             if rows
             else None
         )
@@ -60,15 +63,42 @@ class RetrievalService:
             else self.SIMILARITY_THRESHOLD
         )
 
-        for rank, (chunk, distance) in enumerate(
+        for rank, (
+            chunk,
+            distance,
+            keyword_score,
+            hybrid_score,
+        ) in enumerate(
             rows,
             start=1,
         ):
 
             distance = float(distance)
 
-            included = (
+            keyword_score = float(keyword_score)
+
+            hybrid_score = float(hybrid_score)
+
+            semantic_match = (
                 distance <= threshold
+            )
+
+            keyword_match = (
+                keyword_score > 0
+            )
+
+            match_type = (
+                "hybrid"
+                if semantic_match and keyword_match
+                else "semantic"
+                if semantic_match
+                else "keyword"
+                if keyword_match
+                else "none"
+            )
+
+            included = (
+                match_type != "none"
                 and len(retrieved_chunks)
                 < self.MAX_CONTEXT_CHUNKS
             )
@@ -79,6 +109,9 @@ class RetrievalService:
                     document_id=chunk.document_id,
                     rank=rank,
                     distance=distance,
+                    keyword_score=keyword_score,
+                    hybrid_score=hybrid_score,
+                    match_type=match_type,
                     included=included,
                 )
             )
@@ -89,6 +122,8 @@ class RetrievalService:
                     RetrievedChunk(
                         chunk=chunk,
                         distance=distance,
+                        keyword_score=keyword_score,
+                        hybrid_score=hybrid_score,
                     )
                 )
 
@@ -149,6 +184,9 @@ Chunk: {chunk.chunk_index}
                 "chunk_id": candidate.chunk_id,
                 "document_id": candidate.document_id,
                 "distance": candidate.distance,
+                "keyword_score": candidate.keyword_score,
+                "hybrid_score": candidate.hybrid_score,
+                "match_type": candidate.match_type,
                 "included": candidate.included,
             }
             for candidate in diagnostics.candidates
@@ -188,6 +226,7 @@ Chunk: {chunk.chunk_index}
             await self.repository.search_chunks(
                 conversation_id=conversation_id,
                 embedding=embedding,
+                question=question,
             )
         )
 

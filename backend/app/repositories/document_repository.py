@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -106,6 +106,7 @@ class DocumentRepository:
         self,
         conversation_id: int,
         embedding: list[float],
+        question: str,
         limit: int = 5,
     ):
 
@@ -115,10 +116,39 @@ class DocumentRepository:
             ).label("distance")
         )
 
+        semantic_score = (
+            1 - distance
+        )
+
+        query = (
+            func.websearch_to_tsquery(
+                "english",
+                question,
+            )
+        )
+
+        keyword_score = (
+            func.ts_rank_cd(
+                DocumentChunk.search_vector,
+                query,
+            ).label("keyword_score")
+        )
+
+        hybrid_score = (
+            (
+                semantic_score * 0.7
+            )
+            + (
+                keyword_score * 0.3
+            )
+        ).label("hybrid_score")
+
         stmt = (
             select(
                 DocumentChunk,
                 distance,
+                keyword_score,
+                hybrid_score,
             )
             .options(
                 selectinload(
@@ -130,7 +160,9 @@ class DocumentRepository:
                 Document.conversation_id
                 == conversation_id
             )
-            .order_by(distance)
+            .order_by(
+                hybrid_score.desc()
+            )
             .limit(limit)
         )
 
