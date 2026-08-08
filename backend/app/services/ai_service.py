@@ -154,6 +154,32 @@ Current User Question:
                 "AI service is currently unavailable."
             ) from e
 
+    async def generate_reranking_response(
+        self,
+        prompt: str,
+    ) -> str:
+
+        try:
+
+            response = (
+                await self.client.aio.models.generate_content(
+                    model=settings.gemini_model,
+                    contents=prompt,
+                )
+            )
+
+            return response.text
+
+        except Exception as e:
+
+            logger.exception(
+                "Gemini Reranking Error"
+            )
+
+            raise AIServiceError(
+                "AI reranking is currently unavailable."
+            ) from e
+
     async def generate_title(
         self,
         message: str,

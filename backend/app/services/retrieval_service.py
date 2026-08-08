@@ -13,13 +13,15 @@ from app.schemas.retrieval import (
 from app.services.embedding_service import (
     EmbeddingService,
 )
+from app.services.reranking_service import (
+    RerankingService,
+)
 
 
 class RetrievalService:
 
     SIMILARITY_THRESHOLD = 0.35
     DISTANCE_MARGIN = 0.10
-    MAX_CONTEXT_CHUNKS = 3
 
     def __init__(
         self,
@@ -31,6 +33,10 @@ class RetrievalService:
 
         self.embedding_service = (
             EmbeddingService()
+        )
+
+        self.reranking_service = (
+            RerankingService()
         )
 
     def _build_retrieval_result(
@@ -99,8 +105,6 @@ class RetrievalService:
 
             included = (
                 match_type != "none"
-                and len(retrieved_chunks)
-                < self.MAX_CONTEXT_CHUNKS
             )
 
             candidates.append(
@@ -140,6 +144,33 @@ class RetrievalService:
         )
 
         return retrieved_chunks, diagnostics
+
+    def _update_diagnostics(
+        self,
+        diagnostics: RetrievalDiagnostics,
+        reranked_chunks: list[RetrievedChunk],
+    ) -> None:
+
+        selected_chunk_ids = {
+            item.chunk.id
+            for item in reranked_chunks
+        }
+
+        for candidate in diagnostics.candidates:
+
+            candidate.included = (
+                candidate.chunk_id
+                in selected_chunk_ids
+            )
+
+        diagnostics.accepted_count = len(
+            reranked_chunks
+        )
+
+        diagnostics.rejected_count = (
+            diagnostics.candidate_count
+            - diagnostics.accepted_count
+        )
 
     def _build_context(
         self,
@@ -236,18 +267,30 @@ Chunk: {chunk.chunk_index}
             )
         )
 
+        reranked_chunks = (
+            await self.reranking_service.rerank(
+                question,
+                retrieved_chunks,
+            )
+        )
+
+        self._update_diagnostics(
+            diagnostics,
+            reranked_chunks,
+        )
+
         self._log_diagnostics(
             conversation_id,
             diagnostics,
         )
 
         context = self._build_context(
-            retrieved_chunks
+            reranked_chunks
         )
 
         return RetrievalResult(
             context=context,
-            chunks=retrieved_chunks,
-            count=len(retrieved_chunks),
+            chunks=reranked_chunks,
+            count=len(reranked_chunks),
             diagnostics=diagnostics,
         )
