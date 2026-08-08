@@ -1,20 +1,33 @@
-from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi.responses import StreamingResponse
+from fastapi import (
+    APIRouter,
+    Depends,
+)
+from fastapi.responses import (
+    StreamingResponse,
+)
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+)
 
-from app.core.dependencies import get_current_user
-from app.db.database import get_db
-from app.models.user import User
+from app.core.dependencies import (
+    get_current_user,
+)
+from app.db.database import (
+    get_db,
+)
+from app.models.user import (
+    User,
+)
 from app.schemas.conversation import (
     ConversationCreate,
     ConversationResponse,
 )
+from app.schemas.message import (
+    ChatResponse,
+    MessageCreate,
+)
 from app.services.conversation_service import (
     ConversationService,
-)
-from app.schemas.message import (
-    MessageCreate,
-    MessageResponse,
 )
 from app.services.message_service import (
     MessageService,
@@ -34,7 +47,9 @@ router = APIRouter(
 async def create_conversation(
     data: ConversationCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(
+        get_current_user,
+    ),
 ):
 
     service = ConversationService(db)
@@ -51,27 +66,33 @@ async def create_conversation(
 )
 async def get_conversations(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(
+        get_current_user,
+    ),
 ):
 
     service = ConversationService(db)
 
     return await service.get_conversations(
-        current_user.id
+        current_user.id,
     )
 
 
 @router.post(
     "/conversations/{conversation_id}/messages",
-    response_model=list[MessageResponse],
+    response_model=ChatResponse,
 )
 async def send_message(
     conversation_id: int,
     data: MessageCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(
+        get_current_user,
+    ),
 ):
+
     conversation_service = ConversationService(db)
+
     await conversation_service.verify_ownership(
         conversation_id,
         current_user.id,
@@ -84,6 +105,7 @@ async def send_message(
         data,
     )
 
+
 @router.post(
     "/conversations/{conversation_id}/messages/stream",
 )
@@ -91,7 +113,9 @@ async def stream_message(
     conversation_id: int,
     data: MessageCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(
+        get_current_user,
+    ),
 ):
 
     conversation_service = ConversationService(db)

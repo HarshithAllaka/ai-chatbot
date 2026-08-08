@@ -1,5 +1,6 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models.document import Document
 from app.models.document_chunk import DocumentChunk
@@ -118,6 +119,11 @@ class DocumentRepository:
             select(
                 DocumentChunk,
                 distance,
+            )
+            .options(
+                selectinload(
+                    DocumentChunk.document
+                )
             )
             .join(Document)
             .where(

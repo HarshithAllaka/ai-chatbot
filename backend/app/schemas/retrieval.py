@@ -12,7 +12,26 @@ class RetrievedChunk:
 
 
 @dataclass
+class RetrievalCandidate:
+    chunk_id: int
+    document_id: int
+    rank: int
+    distance: float
+    included: bool
+
+
+@dataclass
+class RetrievalDiagnostics:
+    candidate_count: int
+    accepted_count: int
+    rejected_count: int
+    threshold: float
+    candidates: list[RetrievalCandidate]
+
+
+@dataclass
 class RetrievalResult:
     context: str
     chunks: list[RetrievedChunk]
     count: int
+    diagnostics: RetrievalDiagnostics

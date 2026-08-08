@@ -49,7 +49,7 @@ class AIService:
 
         context_text = (
             context.strip()
-            if context
+            if context and context.strip()
             else "No relevant document context."
         )
 

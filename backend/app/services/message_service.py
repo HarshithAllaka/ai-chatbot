@@ -7,7 +7,11 @@ from app.models.message import (
 from app.repositories.message_repository import (
     MessageRepository,
 )
-from app.schemas.message import MessageCreate
+from app.schemas.message import (
+    ChatResponse,
+    DocumentSource,
+    MessageCreate,
+)
 from app.services.ai_service import AIService
 from app.services.conversation_service import (
     ConversationService,
@@ -99,7 +103,7 @@ class MessageService:
         self,
         conversation_id: int,
         data: MessageCreate,
-    ):
+    ) -> ChatResponse:
 
         user_message = (
             await self._save_user_message(
@@ -141,55 +145,30 @@ class MessageService:
             )
         )
 
-        return [
-            user_message,
-            assistant_message,
-        ]
+        seen_documents = set()
 
-    async def stream_message(
-        self,
-        conversation_id: int,
-        data: MessageCreate,
-    ):
+        sources = []
 
-        await self._save_user_message(
-            conversation_id,
-            data.content,
-        )
+        for retrieved in retrieval.chunks:
 
-        await self._generate_title_if_needed(
-            conversation_id,
-            data.content,
-        )
+            document = retrieved.chunk.document
 
-        history = (
-            await self.repository.get_by_conversation(
-                conversation_id
+            if document.id in seen_documents:
+                continue
+
+            seen_documents.add(
+                document.id
             )
-        )
 
-        retrieval = (
-            await self.retrieval_service.retrieve_context(
-                conversation_id=conversation_id,
-                question=data.content,
+            sources.append(
+                DocumentSource(
+                    document_id=document.id,
+                    filename=document.original_filename,
+                )
             )
-        )
 
-        complete_response = ""
-
-        async for chunk in (
-            self.ai_service.stream_chat_response(
-                question=data.content,
-                history=history,
-                context=retrieval.context,
-            )
-        ):
-
-            complete_response += chunk
-
-            yield chunk
-
-        await self._save_assistant_message(
-            conversation_id,
-            complete_response,retr
+        return ChatResponse(
+            user_message=user_message,
+            assistant_message=assistant_message,
+            sources=sources,
         )
