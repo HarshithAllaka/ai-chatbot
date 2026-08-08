@@ -86,6 +86,37 @@ class RetrievalService:
 
         return retrieved_chunks, diagnostics
 
+    def _build_context(
+        self,
+        retrieved_chunks: list[RetrievedChunk],
+    ) -> str:
+
+        context_blocks = []
+
+        for index, retrieved in enumerate(
+            retrieved_chunks,
+            start=1,
+        ):
+
+            chunk = retrieved.chunk
+
+            document = chunk.document
+
+            context_blocks.append(
+                f"""
+[Document {index}]
+Filename: {document.original_filename}
+Chunk: {chunk.chunk_index}
+
+{chunk.content}
+[/Document {index}]
+""".strip()
+            )
+
+        return "\n\n---\n\n".join(
+            context_blocks
+        )
+
     def _log_diagnostics(
         self,
         conversation_id: int,
@@ -149,9 +180,8 @@ class RetrievalService:
             diagnostics,
         )
 
-        context = "\n\n".join(
-            item.chunk.content
-            for item in retrieved_chunks
+        context = self._build_context(
+            retrieved_chunks
         )
 
         return RetrievalResult(
