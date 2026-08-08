@@ -108,18 +108,23 @@ class DocumentRepository:
         limit: int = 5,
     ):
 
+        distance = (
+            DocumentChunk.embedding.cosine_distance(
+                embedding
+            ).label("distance")
+        )
+
         stmt = (
-            select(DocumentChunk)
+            select(
+                DocumentChunk,
+                distance,
+            )
             .join(Document)
             .where(
                 Document.conversation_id
                 == conversation_id
             )
-            .order_by(
-                DocumentChunk.embedding.cosine_distance(
-                    embedding
-                )
-            )
+            .order_by(distance)
             .limit(limit)
         )
 
@@ -127,4 +132,4 @@ class DocumentRepository:
             stmt
         )
 
-        return result.scalars().all()
+        return result.all()

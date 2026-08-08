@@ -191,5 +191,5 @@ class MessageService:
 
         await self._save_assistant_message(
             conversation_id,
-            complete_response,
+            complete_response,retr
         )

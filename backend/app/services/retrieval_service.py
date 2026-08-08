@@ -5,6 +5,7 @@ from app.repositories.document_repository import (
 )
 from app.schemas.retrieval import (
     RetrievalResult,
+    RetrievedChunk,
 )
 from app.services.embedding_service import (
     EmbeddingService,
@@ -37,20 +38,35 @@ class RetrievalService:
             )
         )
 
-        chunks = (
+        rows = (
             await self.repository.search_chunks(
                 conversation_id=conversation_id,
                 embedding=embedding,
             )
         )
 
+        threshold = 0.35
+
+        retrieved_chunks = []
+
+        for chunk, distance in rows:
+
+            if distance <= threshold:
+
+                retrieved_chunks.append(
+                    RetrievedChunk(
+                        chunk=chunk,
+                        distance=distance,
+                    )
+                )
+
         context = "\n\n".join(
-            chunk.content
-            for chunk in chunks
+            item.chunk.content
+            for item in retrieved_chunks
         )
 
         return RetrievalResult(
             context=context,
-            chunks=chunks,
-            count=len(chunks),
+            chunks=retrieved_chunks,
+            count=len(retrieved_chunks),
         )
