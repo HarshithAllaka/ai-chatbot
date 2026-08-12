@@ -1,3 +1,5 @@
+from time import perf_counter
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.logging import logger
@@ -22,6 +24,16 @@ class RetrievalService:
 
     SIMILARITY_THRESHOLD = 0.35
     DISTANCE_MARGIN = 0.10
+
+    def _get_duration_ms(
+        self,
+        start_time: float,
+    ) -> float:
+
+        return round(
+            (perf_counter() - start_time) * 1000,
+            2,
+        )
 
     def __init__(
         self,
@@ -140,6 +152,10 @@ class RetrievalService:
             ),
             threshold=threshold,
             best_distance=best_distance,
+            embedding_duration_ms=0.0,
+            search_duration_ms=0.0,
+            reranking_duration_ms=0.0,
+            total_duration_ms=0.0,
             candidates=candidates,
         )
 
@@ -170,6 +186,31 @@ class RetrievalService:
         diagnostics.rejected_count = (
             diagnostics.candidate_count
             - diagnostics.accepted_count
+        )
+
+    def _update_timing_diagnostics(
+        self,
+        diagnostics: RetrievalDiagnostics,
+        embedding_duration_ms: float,
+        search_duration_ms: float,
+        reranking_duration_ms: float,
+        total_duration_ms: float,
+    ) -> None:
+
+        diagnostics.embedding_duration_ms = (
+            embedding_duration_ms
+        )
+
+        diagnostics.search_duration_ms = (
+            search_duration_ms
+        )
+
+        diagnostics.reranking_duration_ms = (
+            reranking_duration_ms
+        )
+
+        diagnostics.total_duration_ms = (
+            total_duration_ms
         )
 
     def _build_context(
@@ -231,6 +272,10 @@ Chunk: {chunk.chunk_index}
             "rejected=%s | "
             "threshold=%s | "
             "best_distance=%s | "
+            "embedding_duration_ms=%s | "
+            "search_duration_ms=%s | "
+            "reranking_duration_ms=%s | "
+            "total_duration_ms=%s | "
             "results=%s",
             conversation_id,
             diagnostics.candidate_count,
@@ -238,6 +283,10 @@ Chunk: {chunk.chunk_index}
             diagnostics.rejected_count,
             diagnostics.threshold,
             diagnostics.best_distance,
+            diagnostics.embedding_duration_ms,
+            diagnostics.search_duration_ms,
+            diagnostics.reranking_duration_ms,
+            diagnostics.total_duration_ms,
             candidate_summary,
         )
 
@@ -247,11 +296,23 @@ Chunk: {chunk.chunk_index}
         question: str,
     ) -> RetrievalResult:
 
+        total_start_time = perf_counter()
+
+        embedding_start_time = perf_counter()
+
         embedding = (
             await self.embedding_service.generate_embedding(
                 question
             )
         )
+
+        embedding_duration_ms = (
+            self._get_duration_ms(
+                embedding_start_time
+            )
+        )
+
+        search_start_time = perf_counter()
 
         rows = (
             await self.repository.search_chunks(
@@ -261,11 +322,19 @@ Chunk: {chunk.chunk_index}
             )
         )
 
+        search_duration_ms = (
+            self._get_duration_ms(
+                search_start_time
+            )
+        )
+
         retrieved_chunks, diagnostics = (
             self._build_retrieval_result(
                 rows
             )
         )
+
+        reranking_start_time = perf_counter()
 
         reranked_chunks = (
             await self.reranking_service.rerank(
@@ -274,9 +343,25 @@ Chunk: {chunk.chunk_index}
             )
         )
 
+        reranking_duration_ms = (
+            self._get_duration_ms(
+                reranking_start_time
+            )
+        )
+
         self._update_diagnostics(
             diagnostics,
             reranked_chunks,
+        )
+
+        self._update_timing_diagnostics(
+            diagnostics,
+            embedding_duration_ms,
+            search_duration_ms,
+            reranking_duration_ms,
+            self._get_duration_ms(
+                total_start_time
+            ),
         )
 
         self._log_diagnostics(

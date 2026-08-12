@@ -32,6 +32,10 @@ class RetrievalDiagnostics:
     rejected_count: int
     threshold: float
     best_distance: float | None
+    embedding_duration_ms: float
+    search_duration_ms: float
+    reranking_duration_ms: float
+    total_duration_ms: float
     candidates: list[RetrievalCandidate]
 
 
