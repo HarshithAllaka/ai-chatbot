@@ -1,13 +1,17 @@
 import json
 
 from app.core.logging import logger
-from app.schemas.retrieval import RetrievedChunk
+from app.schemas.retrieval import (
+    RerankingResult,
+    RetrievedChunk,
+)
 from app.services.ai_service import AIService
 
 
 class RerankingService:
 
     MAX_CONTEXT_CHUNKS = 3
+    SCORE_GAP_THRESHOLD = 0.15
 
     def __init__(self):
         self.ai_service = AIService()
@@ -46,6 +50,27 @@ Candidates:
 
 {json.dumps(candidates)}
 """
+
+    def _get_skip_reason(
+        self,
+        chunks: list[RetrievedChunk],
+    ) -> str | None:
+
+        if not chunks:
+            return "no_candidates"
+
+        if len(chunks) == 1:
+            return "single_candidate"
+
+        score_gap = (
+            chunks[0].hybrid_score
+            - chunks[1].hybrid_score
+        )
+
+        if score_gap >= self.SCORE_GAP_THRESHOLD:
+            return "dominant_hybrid_score"
+
+        return None
 
     def _parse_chunk_ids(
         self,
@@ -104,10 +129,32 @@ Candidates:
         self,
         question: str,
         chunks: list[RetrievedChunk],
-    ) -> list[RetrievedChunk]:
+    ) -> RerankingResult:
 
-        if not chunks:
-            return []
+        skip_reason = self._get_skip_reason(
+            chunks
+        )
+
+        if skip_reason == "no_candidates":
+            return RerankingResult(
+                chunks=[],
+                used=False,
+                skip_reason=skip_reason,
+            )
+
+        if skip_reason == "single_candidate":
+            return RerankingResult(
+                chunks=chunks,
+                used=False,
+                skip_reason=skip_reason,
+            )
+
+        if skip_reason == "dominant_hybrid_score":
+            return RerankingResult(
+                chunks=chunks[:1],
+                used=False,
+                skip_reason=skip_reason,
+            )
 
         prompt = self._build_reranking_prompt(
             question,
@@ -128,7 +175,11 @@ Candidates:
                 "Reranking fallback activated"
             )
 
-            return chunks[:self.MAX_CONTEXT_CHUNKS]
+            return RerankingResult(
+                chunks=chunks[:self.MAX_CONTEXT_CHUNKS],
+                used=True,
+                skip_reason=None,
+            )
 
         selected_chunk_ids = self._parse_chunk_ids(
             response,
@@ -136,14 +187,22 @@ Candidates:
         )
 
         if not selected_chunk_ids:
-            return chunks[:self.MAX_CONTEXT_CHUNKS]
+            return RerankingResult(
+                chunks=chunks[:self.MAX_CONTEXT_CHUNKS],
+                used=True,
+                skip_reason=None,
+            )
 
         chunks_by_id = {
             item.chunk.id: item
             for item in chunks
         }
 
-        return [
-            chunks_by_id[chunk_id]
-            for chunk_id in selected_chunk_ids
-        ]
+        return RerankingResult(
+            chunks=[
+                chunks_by_id[chunk_id]
+                for chunk_id in selected_chunk_ids
+            ],
+            used=True,
+            skip_reason=None,
+        )

@@ -36,6 +36,8 @@ class RetrievalDiagnostics:
     search_duration_ms: float
     reranking_duration_ms: float
     total_duration_ms: float
+    reranking_used: bool
+    reranking_skip_reason: str | None
     candidates: list[RetrievalCandidate]
 
 
@@ -45,3 +47,10 @@ class RetrievalResult:
     chunks: list[RetrievedChunk]
     count: int
     diagnostics: RetrievalDiagnostics
+
+
+@dataclass
+class RerankingResult:
+    chunks: list[RetrievedChunk]
+    used: bool
+    skip_reason: str | None

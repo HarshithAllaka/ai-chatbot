@@ -27,7 +27,7 @@ from app.tasks.document_tasks import (
 
 router = APIRouter(
     prefix="/documents",
-    tags=["Documents"],
+    tags=["Document"],
 )
 
 

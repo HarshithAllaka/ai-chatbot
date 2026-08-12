@@ -10,6 +10,7 @@ from app.schemas.retrieval import (
     RetrievalCandidate,
     RetrievalDiagnostics,
     RetrievalResult,
+    RerankingResult,
     RetrievedChunk,
 )
 from app.services.embedding_service import (
@@ -156,6 +157,8 @@ class RetrievalService:
             search_duration_ms=0.0,
             reranking_duration_ms=0.0,
             total_duration_ms=0.0,
+            reranking_used=False,
+            reranking_skip_reason=None,
             candidates=candidates,
         )
 
@@ -164,8 +167,10 @@ class RetrievalService:
     def _update_diagnostics(
         self,
         diagnostics: RetrievalDiagnostics,
-        reranked_chunks: list[RetrievedChunk],
+        reranking_result: RerankingResult,
     ) -> None:
+
+        reranked_chunks = reranking_result.chunks
 
         selected_chunk_ids = {
             item.chunk.id
@@ -186,6 +191,14 @@ class RetrievalService:
         diagnostics.rejected_count = (
             diagnostics.candidate_count
             - diagnostics.accepted_count
+        )
+
+        diagnostics.reranking_used = (
+            reranking_result.used
+        )
+
+        diagnostics.reranking_skip_reason = (
+            reranking_result.skip_reason
         )
 
     def _update_timing_diagnostics(
@@ -275,6 +288,8 @@ Chunk: {chunk.chunk_index}
             "embedding_duration_ms=%s | "
             "search_duration_ms=%s | "
             "reranking_duration_ms=%s | "
+            "reranking_used=%s | "
+            "reranking_skip_reason=%s | "
             "total_duration_ms=%s | "
             "results=%s",
             conversation_id,
@@ -286,6 +301,8 @@ Chunk: {chunk.chunk_index}
             diagnostics.embedding_duration_ms,
             diagnostics.search_duration_ms,
             diagnostics.reranking_duration_ms,
+            diagnostics.reranking_used,
+            diagnostics.reranking_skip_reason,
             diagnostics.total_duration_ms,
             candidate_summary,
         )
@@ -336,7 +353,7 @@ Chunk: {chunk.chunk_index}
 
         reranking_start_time = perf_counter()
 
-        reranked_chunks = (
+        reranking_result = (
             await self.reranking_service.rerank(
                 question,
                 retrieved_chunks,
@@ -351,7 +368,7 @@ Chunk: {chunk.chunk_index}
 
         self._update_diagnostics(
             diagnostics,
-            reranked_chunks,
+            reranking_result,
         )
 
         self._update_timing_diagnostics(
@@ -370,12 +387,12 @@ Chunk: {chunk.chunk_index}
         )
 
         context = self._build_context(
-            reranked_chunks
+            reranking_result.chunks
         )
 
         return RetrievalResult(
             context=context,
-            chunks=reranked_chunks,
-            count=len(reranked_chunks),
+            chunks=reranking_result.chunks,
+            count=len(reranking_result.chunks),
             diagnostics=diagnostics,
         )
