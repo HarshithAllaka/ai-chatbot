@@ -25,7 +25,10 @@ class MessageResponse(BaseModel):
 
 class DocumentSource(BaseModel):
     document_id: int
+    chunk_id: int
     filename: str
+    chunk_index: int
+    excerpt: str
 
 
 class ChatResponse(BaseModel):

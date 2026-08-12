@@ -23,6 +23,8 @@ from app.services.retrieval_service import (
 
 class MessageService:
 
+    CITATION_EXCERPT_LENGTH = 300
+
     def __init__(
         self,
         db: AsyncSession,
@@ -99,6 +101,55 @@ class MessageService:
                 title,
             )
 
+    def _build_excerpt(
+        self,
+        content: str,
+    ) -> str:
+
+        normalized_content = " ".join(
+            content.split()
+        )
+
+        if (
+            len(normalized_content)
+            <= self.CITATION_EXCERPT_LENGTH
+        ):
+            return normalized_content
+
+        return (
+            normalized_content[
+                :self.CITATION_EXCERPT_LENGTH
+            ].rstrip()
+            + "..."
+        )
+
+    def _build_sources(
+        self,
+        retrieval_chunks,
+    ) -> list[DocumentSource]:
+
+        sources = []
+
+        for retrieved in retrieval_chunks:
+
+            chunk = retrieved.chunk
+
+            document = chunk.document
+
+            sources.append(
+                DocumentSource(
+                    document_id=document.id,
+                    chunk_id=chunk.id,
+                    filename=document.original_filename,
+                    chunk_index=chunk.chunk_index,
+                    excerpt=self._build_excerpt(
+                        chunk.content
+                    ),
+                )
+            )
+
+        return sources
+
     async def send_message(
         self,
         conversation_id: int,
@@ -145,27 +196,9 @@ class MessageService:
             )
         )
 
-        seen_documents = set()
-
-        sources = []
-
-        for retrieved in retrieval.chunks:
-
-            document = retrieved.chunk.document
-
-            if document.id in seen_documents:
-                continue
-
-            seen_documents.add(
-                document.id
-            )
-
-            sources.append(
-                DocumentSource(
-                    document_id=document.id,
-                    filename=document.original_filename,
-                )
-            )
+        sources = self._build_sources(
+            retrieval.chunks
+        )
 
         return ChatResponse(
             user_message=user_message,
