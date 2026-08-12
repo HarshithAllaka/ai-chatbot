@@ -138,26 +138,19 @@ class DocumentService:
                 )
             )
 
-            document_chunks = []
-
-            for index, chunk in enumerate(
-                chunks
-            ):
-
-                embedding = (
-                    await self.embedding_service.generate_embedding(
-                        chunk
-                    )
+            embeddings = (
+                await self.embedding_service.generate_embeddings(
+                    chunks
                 )
+            )
 
-                document_chunks.append(
-                    DocumentChunk(
-                        document_id=document.id,
-                        chunk_index=index,
-                        content=chunk,
-                        embedding=embedding,
-                    )
+            document_chunks = (
+                self._build_document_chunks(
+                    document.id,
+                    chunks,
+                    embeddings,
                 )
+            )
 
             if document_chunks:
 
@@ -184,6 +177,35 @@ class DocumentService:
             )
 
             raise
+
+    def _build_document_chunks(
+        self,
+        document_id: int,
+        chunks: list[str],
+        embeddings: list[list[float]],
+    ) -> list[DocumentChunk]:
+
+        if len(chunks) != len(embeddings):
+            raise ValueError(
+                "Chunk count does not match embedding count."
+            )
+
+        document_chunks = []
+
+        for index, (chunk, embedding) in enumerate(
+            zip(chunks, embeddings, strict=True)
+        ):
+
+            document_chunks.append(
+                DocumentChunk(
+                    document_id=document_id,
+                    chunk_index=index,
+                    content=chunk,
+                    embedding=embedding,
+                )
+            )
+
+        return document_chunks
 
     async def list_documents(
         self,

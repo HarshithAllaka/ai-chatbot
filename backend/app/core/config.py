@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     gemini_api_key: str
     gemini_model: str
     gemini_embedding_model: str
+    embedding_batch_size: int = 20
 
     upload_dir: str = "uploads"
 
