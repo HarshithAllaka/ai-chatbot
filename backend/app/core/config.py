@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     gemini_model: str
     gemini_embedding_model: str
     embedding_batch_size: int = 20
+    document_processing_concurrency: int = 2
 
     upload_dir: str = "uploads"
 
