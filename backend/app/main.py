@@ -4,6 +4,7 @@ from fastapi import FastAPI
 
 from app.api.v1.router import api_router
 from app.core.config import settings
+from app.core.redis import close_redis, initialize_redis
 from app.db.init_db import init_db
 from app.exceptions.handlers import (
     register_exception_handlers,
@@ -18,10 +19,12 @@ async def lifespan(app: FastAPI):
     logger.info("Starting AI Chatbot API...")
 
     init_db()
+    await initialize_redis()
 
     yield
 
     logger.info("Shutting down AI Chatbot API...")
+    await close_redis()
 
 
 def create_app() -> FastAPI:

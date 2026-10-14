@@ -13,7 +13,7 @@ from app.db.database import get_db
 from app.main import app
 
 TEST_ENGINE = create_async_engine(
-    settings.test_database_url,
+    settings.database_test_url,
     echo=False,
 )
 
@@ -32,16 +32,27 @@ async def override_get_db():
 app.dependency_overrides[get_db] = override_get_db
 
 
+from sqlalchemy import text
+
 @pytest.fixture(scope="session", autouse=True)
 async def prepare_database():
-    async with TEST_ENGINE.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
+    try:
+        async with TEST_ENGINE.begin() as conn:
+            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
+            await conn.run_sync(Base.metadata.drop_all)
+            await conn.run_sync(Base.metadata.create_all)
+    except Exception as e:
+        # DB not reachable during standalone unit tests; proceed gracefully
+        pass
 
     yield
 
-    async with TEST_ENGINE.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
+    try:
+        async with TEST_ENGINE.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
+    except Exception:
+        pass
+
 
 
 @pytest.fixture

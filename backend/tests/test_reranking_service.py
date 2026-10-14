@@ -34,6 +34,7 @@ def build_chunk(
 
     chunk = SimpleNamespace(
         id=chunk_id,
+        content=f"Content for chunk {chunk_id}",
     )
 
     return RetrievedChunk(
