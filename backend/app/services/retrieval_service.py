@@ -1,8 +1,14 @@
+import hashlib
+import json
 from time import perf_counter
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.logging import logger
+from app.core.redis import get_redis_client
+from app.models.document import Document
+from app.models.document_chunk import DocumentChunk
 from app.repositories.document_repository import (
     DocumentRepository,
 )
@@ -50,6 +56,201 @@ class RetrievalService:
 
         self.reranking_service = (
             RerankingService()
+        )
+
+    def _generate_cache_key(
+        self,
+        conversation_id: int,
+        question: str,
+    ) -> str:
+        question_hash = hashlib.sha256(
+            question.strip().lower().encode("utf-8")
+        ).hexdigest()
+        return f"retrieval:v1:{conversation_id}:{question_hash}"
+
+    async def _get_cached_retrieval(
+        self,
+        conversation_id: int,
+        question: str,
+    ) -> RetrievalResult | None:
+        if not settings.retrieval_cache_enabled:
+            return None
+
+        redis = get_redis_client()
+        if redis is None:
+            return None
+
+        key = self._generate_cache_key(
+            conversation_id,
+            question,
+        )
+
+        try:
+            raw = await redis.get(key)
+            if raw is None:
+                return None
+
+            data = json.loads(
+                raw.decode("utf-8")
+                if isinstance(raw, bytes)
+                else raw
+            )
+            return self._deserialize_retrieval_result(
+                data
+            )
+        except Exception as exc:
+            logger.warning(
+                "Retrieval cache read error | error=%s",
+                exc,
+            )
+            return None
+
+    async def _set_cached_retrieval(
+        self,
+        conversation_id: int,
+        question: str,
+        result: RetrievalResult,
+    ) -> None:
+        if not settings.retrieval_cache_enabled:
+            return
+
+        redis = get_redis_client()
+        if redis is None:
+            return
+
+        key = self._generate_cache_key(
+            conversation_id,
+            question,
+        )
+
+        try:
+            data = self._serialize_retrieval_result(
+                result
+            )
+            val = json.dumps(data).encode("utf-8")
+            await redis.setex(
+                key,
+                settings.retrieval_cache_ttl,
+                val,
+            )
+        except Exception as exc:
+            logger.warning(
+                "Retrieval cache write error | error=%s",
+                exc,
+            )
+
+    def _serialize_retrieval_result(
+        self,
+        result: RetrievalResult,
+    ) -> dict:
+        return {
+            "context": result.context,
+            "count": result.count,
+            "chunks": [
+                {
+                    "chunk_id": item.chunk.id,
+                    "document_id": item.chunk.document_id,
+                    "chunk_index": item.chunk.chunk_index,
+                    "content": item.chunk.content,
+                    "original_filename": (
+                        item.chunk.document.original_filename
+                        if item.chunk.document
+                        else ""
+                    ),
+                    "distance": item.distance,
+                    "keyword_score": item.keyword_score,
+                    "hybrid_score": item.hybrid_score,
+                }
+                for item in result.chunks
+            ],
+            "diagnostics": {
+                "candidate_count": result.diagnostics.candidate_count,
+                "accepted_count": result.diagnostics.accepted_count,
+                "rejected_count": result.diagnostics.rejected_count,
+                "threshold": result.diagnostics.threshold,
+                "best_distance": result.diagnostics.best_distance,
+                "embedding_duration_ms": result.diagnostics.embedding_duration_ms,
+                "search_duration_ms": result.diagnostics.search_duration_ms,
+                "reranking_duration_ms": result.diagnostics.reranking_duration_ms,
+                "total_duration_ms": result.diagnostics.total_duration_ms,
+                "reranking_used": result.diagnostics.reranking_used,
+                "reranking_skip_reason": result.diagnostics.reranking_skip_reason,
+                "candidates": [
+                    {
+                        "chunk_id": c.chunk_id,
+                        "document_id": c.document_id,
+                        "rank": c.rank,
+                        "distance": c.distance,
+                        "keyword_score": c.keyword_score,
+                        "hybrid_score": c.hybrid_score,
+                        "match_type": c.match_type,
+                        "included": c.included,
+                    }
+                    for c in result.diagnostics.candidates
+                ],
+            },
+        }
+
+    def _deserialize_retrieval_result(
+        self,
+        data: dict,
+    ) -> RetrievalResult:
+        chunks = []
+        for item in data.get("chunks", []):
+            doc = Document(
+                id=item["document_id"],
+                original_filename=item["original_filename"],
+            )
+            chunk = DocumentChunk(
+                id=item["chunk_id"],
+                document_id=item["document_id"],
+                chunk_index=item["chunk_index"],
+                content=item["content"],
+            )
+            chunk.document = doc
+            chunks.append(
+                RetrievedChunk(
+                    chunk=chunk,
+                    distance=item["distance"],
+                    keyword_score=item["keyword_score"],
+                    hybrid_score=item["hybrid_score"],
+                )
+            )
+
+        diag_data = data.get("diagnostics", {})
+        candidates = [
+            RetrievalCandidate(
+                chunk_id=c["chunk_id"],
+                document_id=c["document_id"],
+                rank=c["rank"],
+                distance=c["distance"],
+                keyword_score=c["keyword_score"],
+                hybrid_score=c["hybrid_score"],
+                match_type=c["match_type"],
+                included=c["included"],
+            )
+            for c in diag_data.get("candidates", [])
+        ]
+        diagnostics = RetrievalDiagnostics(
+            candidate_count=diag_data.get("candidate_count", 0),
+            accepted_count=diag_data.get("accepted_count", 0),
+            rejected_count=diag_data.get("rejected_count", 0),
+            threshold=diag_data.get("threshold", 0.35),
+            best_distance=diag_data.get("best_distance"),
+            embedding_duration_ms=diag_data.get("embedding_duration_ms", 0.0),
+            search_duration_ms=diag_data.get("search_duration_ms", 0.0),
+            reranking_duration_ms=diag_data.get("reranking_duration_ms", 0.0),
+            total_duration_ms=diag_data.get("total_duration_ms", 0.0),
+            reranking_used=diag_data.get("reranking_used", False),
+            reranking_skip_reason=diag_data.get("reranking_skip_reason"),
+            candidates=candidates,
+        )
+
+        return RetrievalResult(
+            context=data.get("context", ""),
+            chunks=chunks,
+            count=data.get("count", len(chunks)),
+            diagnostics=diagnostics,
         )
 
     def _build_retrieval_result(
@@ -315,6 +516,20 @@ Chunk: {chunk.chunk_index}
 
         total_start_time = perf_counter()
 
+        cached_result = await self._get_cached_retrieval(
+            conversation_id,
+            question,
+        )
+        if cached_result is not None:
+            total_duration_ms = self._get_duration_ms(total_start_time)
+            cached_result.diagnostics.total_duration_ms = total_duration_ms
+            logger.info(
+                "Retrieval cache HIT | conversation_id=%s | duration_ms=%s",
+                conversation_id,
+                total_duration_ms,
+            )
+            return cached_result
+
         embedding_start_time = perf_counter()
 
         embedding = (
@@ -390,9 +605,17 @@ Chunk: {chunk.chunk_index}
             reranking_result.chunks
         )
 
-        return RetrievalResult(
+        retrieval_result = RetrievalResult(
             context=context,
             chunks=reranking_result.chunks,
             count=len(reranking_result.chunks),
             diagnostics=diagnostics,
         )
+
+        await self._set_cached_retrieval(
+            conversation_id,
+            question,
+            retrieval_result,
+        )
+
+        return retrieval_result

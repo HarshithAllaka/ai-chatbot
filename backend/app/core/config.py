@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379"
     embedding_cache_ttl: int = 86400  # 24 hours in seconds
     embedding_cache_enabled: bool = True
+    retrieval_cache_ttl: int = 300  # 5 minutes in seconds
+    retrieval_cache_enabled: bool = True
 
     model_config = SettingsConfigDict(
         env_file=".env",

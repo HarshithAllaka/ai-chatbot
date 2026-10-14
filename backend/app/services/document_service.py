@@ -5,6 +5,8 @@ from fastapi import UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.logging import logger
+from app.core.redis import get_redis_client
 from app.models.document import (
     Document,
     DocumentStatus,
@@ -102,6 +104,34 @@ class DocumentService:
             document
         )
 
+    async def _invalidate_retrieval_cache(
+        self,
+        conversation_id: int,
+    ) -> None:
+        redis = get_redis_client()
+        if redis is None:
+            return
+
+        try:
+            pattern = f"retrieval:v1:{conversation_id}:*"
+            keys = []
+            async for key in redis.scan_iter(match=pattern):
+                keys.append(key)
+
+            if keys:
+                await redis.delete(*keys)
+                logger.info(
+                    "Invalidated retrieval cache | conversation_id=%s | keys_cleared=%d",
+                    conversation_id,
+                    len(keys),
+                )
+        except Exception as exc:
+            logger.warning(
+                "Failed to invalidate retrieval cache | conversation_id=%s | error=%s",
+                conversation_id,
+                exc,
+            )
+
     async def process_document(
         self,
         document_id: int,
@@ -164,6 +194,10 @@ class DocumentService:
 
             await self.repository.update(
                 document
+            )
+
+            await self._invalidate_retrieval_cache(
+                document.conversation_id
             )
 
         except Exception:
